@@ -6,13 +6,14 @@ from typing import Any
 
 import shellrecharge
 import voluptuous as vol
+from aiohttp import ClientSession
 from aiohttp.client_exceptions import ClientError
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from shellrecharge import LocationEmptyError, LocationValidationError
-
-from .const import DOMAIN
+from shellrecharge import Api, LocationEmptyError, LocationValidationError
+from shellrecharge.user import LoginFailedError
+from .const import DOMAIN, CONF_USERNAME, CONF_PASSWORD
 
 RECHARGE_SCHEMA = vol.Schema({vol.Required("serial_number"): str})
 
@@ -29,6 +30,10 @@ class ShellRechargeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # typ
         errors: dict[str, str] = {}
         if user_input is None:
             return self.async_show_form(step_id="user", data_schema=RECHARGE_SCHEMA)
+
+        if user_input[CONF_USERNAME] is not None and user_input[CONF_PASSWORD] is not None:
+            username = user_input[CONF_USERNAME]
+            password = user_input[CONF_PASSWORD]
 
         try:
             api = shellrecharge.Api(websession=async_get_clientsession(self.hass))
