@@ -13,10 +13,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import DOMAIN, UPDATE_INTERVAL, SerialNumber
+from .const import DOMAIN, UPDATE_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
-PLATFORMS: list[Platform] = [Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -27,7 +27,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     api = shellrecharge.Api(websession=async_get_clientsession(hass))
 
     coordinator = ShellRechargeDataUpdateCoordinator(
-        hass, api, entry.data["serial_number"]
+        hass, api, entry.data["charger_id"]
     )
     hass.data[DOMAIN][entry.entry_id] = coordinator
     await coordinator.async_config_entry_first_refresh()
@@ -51,7 +51,7 @@ class ShellRechargeDataUpdateCoordinator(DataUpdateCoordinator):  # type: ignore
     """My custom coordinator."""
 
     def __init__(
-        self, hass: HomeAssistant, api: shellrecharge.Api, serial_number: SerialNumber
+        self, hass: HomeAssistant, api: shellrecharge.Api, charger_id: str
     ) -> None:
         """Initialize my coordinator."""
         super().__init__(
@@ -61,7 +61,7 @@ class ShellRechargeDataUpdateCoordinator(DataUpdateCoordinator):  # type: ignore
             update_interval=UPDATE_INTERVAL,
         )
         self.api = api
-        self.serial_number = serial_number
+        self.charger_id = charger_id
 
     async def _async_update_data(self) -> shellrecharge.Location | None:
         """Fetch data from API endpoint.
@@ -71,21 +71,21 @@ class ShellRechargeDataUpdateCoordinator(DataUpdateCoordinator):  # type: ignore
         """
         data = None
         try:
-            data = await self.api.location_by_id(self.serial_number)
+            data = await self.api.location_by_id(self.charger_id)
         except LocationEmptyError:
             _LOGGER.error(
-                "Error occurred while fetching data for charger(s) %s, not found, or serial is invalid",
-                self.serial_number,
+                "Error occurred while fetching data for charger(s) %s, not found, or charger_id is invalid",
+                self.charger_id,
             )
         except CancelledError:
             _LOGGER.error(
                 "CancelledError occurred while fetching data for charger(s) %s",
-                self.serial_number,
+                self.charger_id,
             )
         except TimeoutError:
             _LOGGER.error(
                 "TimeoutError occurred while fetching data for charger(s) %s",
-                self.serial_number,
+                self.charger_id,
             )
 
         return data
